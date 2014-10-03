@@ -1,0 +1,113 @@
+%Creator: Kevin Mohan
+%Date Last Modified: 10/01/14
+%Program Functionality: this program was made to integrate various
+%components of a cell into an electrical functional model.
+
+%%%%%%%%%%%%%%%%%%%%% PART 1: Defining Constants %%%%%%%%%%%%%%%%%%%%
+%A bit of formatting first
+clear all;clc;close all;
+gKbar = 36; %[mS/cm^2]
+gNabar = 120; %[mS/cm^2]
+gLbar = 0.3; %[mS/cm^2]
+EK = -12; %[mV]
+ENa = 115; %[mV]
+EL = 10.6; %[mV]
+Vrest = -70; %[mV]
+Cm = 1; %[uF/cm^2]
+
+%%%%%%%%%%%%%%%%%% PART 2: Setting Variables %%%%%%%%%%%%%%%%%
+
+%%Simulation Parameters
+simTime = 100; %[ms]
+I = zeros(1,100);
+Vm = zeros(1,100); %[mV] offset from -70mV after end of simulation
+t = 0:1:100; %milliseconds
+for r = 1:100
+    if r <50
+        I(r) = 5;
+    end
+end
+%%Gating Variables:
+alpham = 0.1*((25-Vm(1))/(exp((25-Vm(1))/10)-1));
+betam = 4*exp(-1*Vm(1)/18);
+alphan = 0.01*((10-Vm(1))/(exp((10-Vm(1))/10)-1));
+betan = 0.125*exp(-1*Vm(1)/80);
+alphah = 0.07*exp(-1*Vm(1)/20);
+betah = 1/(exp((30-Vm(1))/10)+1);
+
+%First run values
+m(1) = alpham/(alpham+betam);
+n(1) = alphan/(alphan+betan);
+h(1) = alphah/(alphah+betah);
+
+%%Currents
+% INa = m.^3*gNa.*h*(Vm-ENa);
+% IK = n.^4*gK*(Vm-EK);
+% IL = gL.*(Vm-EL);
+% Iion = I-IK-INa-IL;
+% Iion2 = Vm*Cm;
+
+%%Derivatives
+% dVmdt = Iion/Cm;
+% dmdt = alpham*(1-m)-betam*m;
+% dndt = alphan*(1-n)-betan*n;
+% dhdt = alphah*(1-h)-betah*h;
+
+%%%%%%%%%%%%%%%%%% PART 3: Euler's Method %%%%%%%%%%%%%%%%%
+%Euler's Method states that
+%y'(t) = f(t,y(t)) where y(t_0) = y_0
+%y(t_n) = y_0 + h*f(t_n-1,y_n-1)
+%n = (sim_duration)/h
+
+for i=1:100 %euler method, begin iteration
+    
+    alpham = 0.1*((25-Vm(i))/(exp((25-Vm(i))/10)-1));
+    betam = 4*exp(-Vm(i)/18);
+    alphan = 0.01*((10-Vm(i))/(exp((10-Vm(i))/10)-1));
+    betan = 0.125*exp(-Vm(i)/80);
+    alphah = 0.07*exp(-Vm(i)/20);
+    betah = 1/(exp((30-Vm(i))/10)+1);
+    %Currents iteration
+    INa = (m(i).^3)*gNabar.*h(i).*(Vm(i)-ENa);
+    IK = (n(i).^4)*gKbar.*(Vm(i)-EK);
+    IL = gLbar.*(Vm(i)-EL);
+    Iion = I(i)-IK-INa-IL;
+    %Derivatives Iteration
+    dmdt = alpham.*(1-m(i))-betam.*m(i);
+    dndt = alphan.*(1-n(i))-betan.*n(i);
+    dhdt = alphah.*(1-h(i))-betah.*h(i);
+    %Changing bases of exponents in model
+    m(i+1) = m(i) + 0.01.*dmdt;
+    n(i+1) = n(i) + 0.01.*dndt;
+    h(i+1) = h(i) + 0.01.*dhdt;
+    %Update Vm
+    dVdt = Iion/Cm;
+    Vm(i+1) = Vm(i) + 0.01.*dVdt;
+
+end
+
+Vm = Vm + Vrest; %[mV] scaling back data by 70 mV offset
+
+%Plotting figure for Vm in question 1
+figure;
+subplot(2,1,1);
+hold on;
+title('Membrane Potential Vm');
+xlabel('Time [s]');
+ylabel('Voltage [mV]');
+plot(t,Vm,'g*-');
+legend('V_m');
+axis([0 0.1 -75 25]);
+hold off;
+
+%Plotting figure for gK and gNa in question 1
+subplot(2,1,2);
+hold on;
+title('Potassium and Sodium Conductances');
+xlabel('Time [ms]');
+ylabel('Area-normalized Conductance [mS/cm^2]');
+plot(t,gKbar*n.^4,'b-');
+plot(t,gNabar*m.^3.*h,'r-');
+plot(t,gLbar,'m-');
+legend('g_K','g_N_a','g_L');
+
